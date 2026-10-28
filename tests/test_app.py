@@ -1163,6 +1163,37 @@ async def test_get_apps_q_via_http(client: AsyncClient, db: Db, url_for: Any) ->
     assert "LoggingApp" not in names
 
 
+@pytest.mark.parametrize(
+    ("group_name", "new_app_name", "expected_group_name"),
+    [
+        ("App-myapp-Members", "RenamedApp", "App-RenamedApp-Members"),
+        ("app-MYAPP-ReadOnly", "RenamedApp", "App-RenamedApp-ReadOnly"),
+        ("App-MyApp-Members", "MYAPP", "App-MYAPP-Members"),
+        ("LegacyMembers", "RenamedApp", "App-RenamedApp-LegacyMembers"),
+    ],
+)
+async def test_put_app_rename_preserves_group_suffix(
+    client: AsyncClient,
+    db: Db,
+    mocker: MockerFixture,
+    url_for: Any,
+    group_name: str,
+    new_app_name: str,
+    expected_group_name: str,
+) -> None:
+    app = await AppFactory.create_async(name="MyApp")
+    group = await AppGroupFactory.create_async(app_id=app.id, name=group_name)
+    group_id = group.id
+    mocker.patch.object(okta, "update_group")
+
+    rep = await client.put(url_for("api-apps.app_by_id", app_id=app.id), json={"name": new_app_name})
+    assert rep.status_code == 200, rep.text
+
+    refreshed = await db.session.get(AppGroup, group_id)
+    assert refreshed is not None
+    assert refreshed.name == expected_group_name
+
+
 async def test_put_app_rename_refreshes_an_unedited_owner_group_description(
     client: AsyncClient, db: Db, mocker: MockerFixture, access_app: App, url_for: Any
 ) -> None:

@@ -381,7 +381,7 @@ async def put_app(
         # description untouched — owner groups now follow the same rule once edited.
         seeded_owner_description = app_owners_group_description(old_app_name)
         for ag in app_groups:
-            if ag.name.startswith(old_prefix):
+            if ag.name.lower().startswith(old_prefix.lower()):
                 suffix = ag.name[len(old_prefix) :]
                 new_group_name = f"{new_prefix}{suffix}"
             else:
