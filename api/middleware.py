@@ -26,6 +26,7 @@ import uuid
 from typing import Awaitable, Callable
 
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
@@ -212,6 +213,16 @@ class CacheControlMiddleware(BaseHTTPMiddleware):
             response.headers["Pragma"] = "no-cache"
             response.headers["Expires"] = "0"
         return response
+
+
+class HealthCheckTrustedHostMiddleware(TrustedHostMiddleware):
+    """Health probes may use an IP Host; this public endpoint never derives URLs from it."""
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] == "http" and scope.get("path") == "/api/healthz":
+            await self.app(scope, receive, send)
+            return
+        await super().__call__(scope, receive, send)
 
 
 class RequestObservabilityMiddleware:

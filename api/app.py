@@ -439,7 +439,7 @@ def create_app(testing: Optional[bool] = False) -> FastAPI:
     app.add_middleware(middleware.RequestObservabilityMiddleware)
 
     # Host-header validation. Added last so it is the outermost layer and
-    # rejects a spoofed Host before anything else runs. Enabled for anyone who
+    # rejects spoofed Hosts except health probes. Enabled for anyone who
     # sets ALLOWED_HOSTS (defense-in-depth for any Host-derived URL). Hard-
     # required only for OIDC deployments outside dev/test, since the OIDC login
     # flow derives its redirect_uri from the Host header (api/auth/oidc.py) and
@@ -447,9 +447,7 @@ def create_app(testing: Optional[bool] = False) -> FastAPI:
     # hit that path, so they aren't forced to set it.
     oidc_configured = settings.OIDC_CLIENT_SECRETS is not None and settings.SECRET_KEY
     if settings.trusted_hosts:
-        from starlette.middleware.trustedhost import TrustedHostMiddleware
-
-        app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.trusted_hosts)
+        app.add_middleware(middleware.HealthCheckTrustedHostMiddleware, allowed_hosts=settings.trusted_hosts)
     elif oidc_configured and settings.ENV not in ("development", "test"):
         raise ValueError(
             "ALLOWED_HOSTS must be set (a comma-separated Host header allowlist) "

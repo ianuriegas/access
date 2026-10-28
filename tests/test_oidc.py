@@ -640,7 +640,7 @@ def _build_app_with(
 
 
 def _has_trusted_host_middleware(app: FastAPI) -> bool:
-    return any(m.cls.__name__ == TrustedHostMiddleware.__name__ for m in app.user_middleware)
+    return any(issubclass(m.cls, TrustedHostMiddleware) for m in app.user_middleware)
 
 
 async def test_request_with_allowed_host_passes(oidc_client: httpx.AsyncClient) -> None:
@@ -652,6 +652,19 @@ async def test_request_with_spoofed_host_rejected(oidc_client: httpx.AsyncClient
     # ALLOWED_HOSTS is "testserver" (set by the fixture); a spoofed Host is
     # rejected by TrustedHostMiddleware before any route runs.
     response = await oidc_client.get("/oidc/login", headers={"host": "evil.example.com"})
+    assert response.status_code == 400
+
+
+@pytest.mark.parametrize("host", ["10.0.0.12", "evil.example.com", "testserver"])
+async def test_health_check_accepts_any_host(oidc_client: httpx.AsyncClient, host: str) -> None:
+    response = await oidc_client.get("/api/healthz", headers={"host": host})
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok"}
+
+
+@pytest.mark.parametrize("path", ["/oidc/login", "/api/users", "/api/healthz/", "/api/healthz-extra"])
+async def test_health_check_host_exemption_is_exact(oidc_client: httpx.AsyncClient, path: str) -> None:
+    response = await oidc_client.get(path, headers={"host": "10.0.0.12"})
     assert response.status_code == 400
 
 
