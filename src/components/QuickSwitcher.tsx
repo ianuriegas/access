@@ -24,6 +24,7 @@ import AppIcon from '@mui/icons-material/AppShortcut';
 import {useApps, useGroups, useRoles, useUsers} from '../api/apiComponents';
 import {AppSummary, GroupSummary, OktaUserSummary, RoleGroupListItem} from '../api/apiSchemas';
 import {displayGroupType, displayUserName} from '../helpers';
+import {useDebouncedValue} from '../hooks/useDebouncedValue';
 
 // Number of results to surface per category. Kept small so the palette stays
 // scannable — the full list pages are a click away for exhaustive browsing.
@@ -62,15 +63,6 @@ function relevanceScore(query: string, fields: Array<string | null | undefined>)
     else if (field.includes(q)) best = Math.min(best, 2);
   }
   return best;
-}
-
-function useDebouncedValue<T>(value: T, delayMs: number): T {
-  const [debounced, setDebounced] = React.useState(value);
-  React.useEffect(() => {
-    const handle = setTimeout(() => setDebounced(value), delayMs);
-    return () => clearTimeout(handle);
-  }, [value, delayMs]);
-  return debounced;
 }
 
 interface QuickSwitcherProps {

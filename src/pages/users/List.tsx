@@ -20,6 +20,7 @@ import {emptyTableRows, displayUserName, perPage} from '../../helpers';
 import ChangeTitle from '../../tab-title';
 import TableTopBar, {renderUserOption, TableTopBarAutocomplete} from '../../components/TableTopBar';
 import LinkTableRow from '../../components/LinkTableRow';
+import {useDebouncedValue} from '../../hooks/useDebouncedValue';
 
 export default function ListUsers() {
   const navigate = useNavigate();
@@ -27,6 +28,7 @@ export default function ListUsers() {
 
   const [searchQuery, setSearchQuery] = React.useState<string | null>(null);
   const [searchInput, setSearchInput] = React.useState('');
+  const debouncedSearchInput = useDebouncedValue(searchInput, 300);
 
   const [page, setPage] = React.useState(0);
   const [rowsPerPage, setRowsPerPage] = React.useState(20);
@@ -45,7 +47,7 @@ export default function ListUsers() {
   });
 
   const {data: searchData} = useUsers({
-    queryParams: {page: 1, size: 10, q: searchInput},
+    queryParams: {page: 1, size: 10, q: debouncedSearchInput},
   });
 
   const rows = data?.items ?? [];
