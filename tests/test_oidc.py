@@ -40,6 +40,44 @@ STUB_OIDC_CLIENT_SECRETS = {
 }
 
 
+@pytest.mark.parametrize("envelope", [None, "web", "secrets"])
+@pytest.mark.parametrize("as_json", [False, True])
+@pytest.mark.parametrize(
+    "metadata",
+    [{"issuer": "https://idp.test/"}, {"server_metadata_url": "https://idp.test/.well-known/openid-configuration"}],
+)
+def test_client_kwargs_accepts_secret_shapes(
+    monkeypatch: pytest.MonkeyPatch, envelope: str | None, as_json: bool, metadata: dict[str, str]
+) -> None:
+    credentials = {"client_id": "test-client", "client_secret": "test-secret", **metadata}
+    secrets = {envelope: credentials} if envelope else credentials
+    monkeypatch.setattr(settings, "OIDC_CLIENT_SECRETS", json.dumps(secrets) if as_json else secrets)
+    monkeypatch.setattr(settings, "OIDC_SERVER_METADATA_URL", None)
+    monkeypatch.setattr(settings, "OIDC_SCOPES", "openid email")
+
+    assert oidc_module._client_kwargs() == {
+        "client_id": "test-client",
+        "client_secret": "test-secret",
+        "client_kwargs": {"scope": "openid email"},
+        "server_metadata_url": "https://idp.test/.well-known/openid-configuration",
+    }
+
+
+def test_client_kwargs_prefers_web_envelope(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        settings,
+        "OIDC_CLIENT_SECRETS",
+        {**STUB_OIDC_CLIENT_SECRETS, "secrets": {"client_id": "other-client"}, "client_id": "flat-client"},
+    )
+    assert oidc_module._client_kwargs()["client_id"] == "test-client"
+
+
+def test_client_kwargs_prefers_configured_metadata(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(settings, "OIDC_CLIENT_SECRETS", {"secrets": STUB_OIDC_CLIENT_SECRETS["web"]})
+    monkeypatch.setattr(settings, "OIDC_SERVER_METADATA_URL", "https://override.test/discovery")
+    assert oidc_module._client_kwargs()["server_metadata_url"] == "https://override.test/discovery"
+
+
 def _signed_session_cookie(secret_key: str, data: dict[str, Any]) -> str:
     payload = base64.b64encode(json.dumps(data).encode("utf-8"))
     return itsdangerous.TimestampSigner(secret_key).sign(payload).decode("utf-8")

@@ -40,7 +40,13 @@ def _parse_secrets(value: Any) -> dict[str, Any]:
 
 def _client_kwargs() -> dict[str, Any]:
     secrets = _parse_secrets(settings.OIDC_CLIENT_SECRETS)
-    web = secrets.get("web", secrets)
+    # Accept both documented envelopes, preserving the client_secrets.json shape's precedence.
+    web = secrets
+    for key in ("web", "secrets"):
+        nested = secrets.get(key)
+        if isinstance(nested, dict):
+            web = nested
+            break
     kwargs = {
         "client_id": web.get("client_id"),
         "client_secret": web.get("client_secret"),
